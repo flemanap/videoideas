@@ -2,7 +2,7 @@
   "name": "videoideas",
   "region": "oregon",
   "builder": "nixpacks",
-  "buildCommand": "cd backend && npm install",
+  "buildCommand": "npm install",
   "startCommand": "node backend/server.js",
   "env": {
     "NODE_VERSION": "20"
