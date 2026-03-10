@@ -19,3 +19,5 @@ services:
         value: bNHcHbwoK83CXrOn0BCiq4t6gHG5UP0oa0qa
       - key: OPENAI_API_KEY
         value: ""
+      - key: ANTHROPIC_API_KEY
+        value: ""
