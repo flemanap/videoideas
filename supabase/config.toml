@@ -1,0 +1,36 @@
+# Supabase Configuration
+[project]
+id = "ieahjkraxawvmzhkcwwb"
+
+# Edge Functions configuration
+[functions.generate-ideas]
+verify_jwt = false
+
+[functions.daily-scheduler]
+verify_jwt = false
+# Cron schedule: Run daily at 6 AM UTC
+schedule = "0 6 * * *"
+
+# Database configuration
+[db]
+port = 5432
+major_version = 15
+
+# API configuration
+[api]
+enabled = true
+port = 54321
+max_rows = 1000
+
+# Storage configuration
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+# Authentication configuration
+[auth]
+enabled = true
+site_url = "https://ieahjkraxawvmzhkcwwb.supabase.co"
+additional_redirect_urls = ["https://ieahjkraxawvmzhkcwwb.supabase.co"]
+jwt_expiry = 3600
+enable_signup = true

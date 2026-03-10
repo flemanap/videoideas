@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ContentFlow - Video Idea Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .tab-content { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .script-box {
+      background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+      border-left: 4px solid #eab308;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">ContentFlow</h1>
+          <p class="text-sm text-gray-500">Daily Video Idea Generator</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <span id="lastGenerated" class="text-sm text-gray-500"></span>
+          <button id="generateBtn" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50">
+            Generate New Ideas
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="bg-white border-b">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex gap-2 py-2 overflow-x-auto">
+        <button onclick="setActiveTab('personal')" id="tab-personal" class="tab-btn px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap bg-indigo-500 text-white">
+          👤 Personal Brand
+        </button>
+        <button onclick="setActiveTab('driveswise')" id="tab-driveswise" class="tab-btn px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap bg-gray-100 text-gray-600">
+          🎵 DrivesWise
+        </button>
+        <button onclick="setActiveTab('profleethire')" id="tab-profleethire" class="tab-btn px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap bg-gray-100 text-gray-600">
+          🚗 ProFleetHire
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <div id="loading" class="flex items-center justify-center h-64">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+    </div>
+
+    <div id="emptyState" class="hidden text-center py-16">
+      <div class="text-6xl mb-4">📹</div>
+      <h2 class="text-xl font-semibold text-gray-700 mb-2">No ideas yet</h2>
+      <p class="text-gray-500 mb-4">Click "Generate New Ideas" to create content for this profile</p>
+    </div>
+
+    <div id="ideasContainer" class="hidden space-y-8"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t mt-auto">
+    <div class="max-w-7xl mx-auto px-4 py-4 text-center text-sm text-gray-500">
+      ContentFlow Generator • Powered by AI • Updates daily at 6 AM UTC
+    </div>
+  </footer>
+
+  <script>
+    // Configuration
+    const SUPABASE_URL = 'https://ieahjkraxawvmzhkcwwb.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllYWhqa3JheGF3dm16aGN3d2IiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTYzNjQwNjQwMCwiZXhwIjoxOTUyMDgyNDAwfQ.rWDsCpv3e1VqqV6AV_j2-J';
+
+    const PROFILES = {
+      personal: { name: 'Personal Brand', color: 'indigo', borderColor: 'border-indigo-500', tabColor: 'bg-indigo-50', textColor: 'text-indigo-600' },
+      driveswise: { name: 'DrivesWise', color: 'pink', borderColor: 'border-pink-500', tabColor: 'bg-pink-50', textColor: 'text-pink-600' },
+      profleethire: { name: 'ProFleetHire', color: 'emerald', borderColor: 'border-emerald-500', tabColor: 'bg-emerald-50', textColor: 'text-emerald-600' }
+    };
+
+    let activeTab = 'personal';
+    let allIdeas = {};
+    let profileIds = {};
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      await fetchProfiles();
+      await fetchIdeas();
+      document.getElementById('generateBtn').addEventListener('click', generateIdeas);
+    });
+
+    async function fetchProfiles() {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,name`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+        const profiles = await response.json();
+        profiles.forEach(p => profileIds[p.name] = p.id);
+      } catch (err) {
+        console.error('Error fetching profiles:', err);
+      }
+    }
+
+    async function fetchIdeas() {
+      document.getElementById('loading').classList.remove('hidden');
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('ideasContainer').classList.add('hidden');
+
+      try {
+        // Fetch settings for last generated date
+        const settingsRes = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.last_generation_date`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+        const settings = await settingsRes.json();
+        if (settings.length > 0 && settings[0].value) {
+          document.getElementById('lastGenerated').textContent = `Last generated: ${settings[0].value}`;
+        }
+
+        // Fetch ideas for each profile
+        allIdeas = {};
+        for (const [key, profile] of Object.entries(PROFILES)) {
+          const profileId = profileIds[key];
+          if (!profileId) continue;
+
+          const response = await fetch(
+            `${SUPABASE_URL}/rest/v1/generated_ideas?profile_id=eq.${profileId}&order=created_at.desc&limit=20`,
+            {
+              headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+              }
+            }
+          );
+          allIdeas[key] = await response.json();
+        }
+
+        renderIdeas();
+      } catch (err) {
+        console.error('Error fetching ideas:', err);
+      }
+
+      document.getElementById('loading').classList.add('hidden');
+    }
+
+    function renderIdeas() {
+      const container = document.getElementById('ideasContainer');
+      const ideas = allIdeas[activeTab] || [];
+      const profile = PROFILES[activeTab];
+
+      if (ideas.length === 0) {
+        document.getElementById('emptyState').classList.remove('hidden');
+        document.getElementById('ideasContainer').classList.add('hidden');
+        return;
+      }
+
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('ideasContainer').classList.remove('hidden');
+
+      // Group by date
+      const grouped = {};
+      ideas.forEach(idea => {
+        const date = new Date(idea.created_at).toDateString();
+        if (!grouped[date]) grouped[date] = [];
+        grouped[date].push(idea);
+      });
+
+      let html = '';
+      for (const [date, dateIdeas] of Object.entries(grouped)) {
+        const dateLabel = getDateLabel(date);
+
+        html += `
+          <div>
+            <div class="sticky top-0 bg-gray-100 py-2 mb-4 z-10">
+              <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">${dateLabel}</h3>
+            </div>
+            <div class="space-y-4">
+        `;
+
+        dateIdeas.forEach(idea => {
+          const hashtags = idea.hashtags || [];
+          const completedBadge = idea.is_completed ?
+            '<span class="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full">✅ Completed</span>' : '';
+
+          html += `
+            <div class="bg-white rounded-xl shadow-sm border-2 ${profile.borderColor} overflow-hidden hover:shadow-md transition-shadow">
+              <div class="p-6">
+                <div class="flex items-start justify-between mb-4">
+                  <h3 class="text-xl font-bold text-gray-900 flex-1">${idea.title}</h3>
+                  ${completedBadge}
+                </div>
+
+                <div class="mb-4">
+                  <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Description (works for all platforms)</h4>
+                  <p class="text-gray-700 leading-relaxed">${idea.description}</p>
+                </div>
+
+                <div class="mb-4">
+                  <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">🎬 5-Second Hook (Script)</h4>
+                  <div class="script-box rounded-lg p-4 font-mono text-sm text-gray-800">
+                    ${idea.script_hook}
+                  </div>
+                </div>
+
+                ${idea.script_full ? `
+                <div class="mb-4">
+                  <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">📝 Full Script (Under 60s)</h4>
+                  <div class="bg-gray-50 rounded-lg p-4 text-sm text-gray-700">
+                    ${idea.script_full}
+                  </div>
+                </div>
+                ` : ''}
+
+                <div class="mb-4">
+                  <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Hashtags</h4>
+                  <div class="flex flex-wrap gap-2">
+                    ${hashtags.map(tag => `
+                      <span class="px-3 py-1 rounded-full text-sm font-medium ${profile.tabColor} ${profile.textColor}">${tag}</span>
+                    `).join('')}
+                  </div>
+                </div>
+
+                ${idea.source_topic ? `
+                <div class="text-sm text-gray-500 mb-4">
+                  <span class="font-medium">Source:</span> ${idea.source_topic}
+                </div>
+                ` : ''}
+
+                <div class="flex gap-3 pt-4 border-t">
+                  <button onclick="copyText('${(idea.script_hook || idea.script_full || '').replace(/'/g, "\\'")}')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium">
+                    📋 Copy Script
+                  </button>
+                  <button onclick="copyText('${hashtags.join(' ')}')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium">
+                    #️⃣ Copy Hashtags
+                  </button>
+                  <button onclick="markComplete('${idea.id}')" ${idea.is_completed ? 'disabled' : ''} class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium disabled:opacity-50">
+                    ${idea.is_completed ? '✓ Completed' : '✓ Mark Done'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        html += '</div></div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function getDateLabel(dateStr) {
+      const date = new Date(dateStr);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (date.toDateString() === today.toDateString()) return 'Today';
+      if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+      return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    }
+
+    function setActiveTab(tab) {
+      activeTab = tab;
+
+      // Update tab styles
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-500', 'bg-pink-500', 'bg-emerald-500', 'text-white');
+        btn.classList.add('bg-gray-100', 'text-gray-600');
+      });
+
+      const activeBtn = document.getElementById(`tab-${tab}`);
+      const colors = { personal: 'bg-indigo-500', driveswise: 'bg-pink-500', profleethire: 'bg-emerald-500' };
+      activeBtn.classList.remove('bg-gray-100', 'text-gray-600');
+      activeBtn.classList.add(colors[tab], 'text-white');
+
+      renderIdeas();
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text);
+      alert('Copied to clipboard!');
+    }
+
+    async function markComplete(ideaId) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/generated_ideas?id=eq.${ideaId}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ is_completed: true })
+        });
+        fetchIdeas();
+      } catch (err) {
+        console.error('Error marking complete:', err);
+      }
+    }
+
+    async function generateIdeas() {
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+
+      try {
+        // Call the Supabase Edge Function
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-ideas`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+
+        const result = await response.json();
+        console.log('Generation result:', result);
+
+        // Refresh ideas after generation
+        setTimeout(() => {
+          fetchIdeas();
+        }, 2000);
+      } catch (err) {
+        console.error('Error generating ideas:', err);
+        alert('Error generating ideas. Please try again.');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Generate New Ideas';
+    }
+  </script>
+</body>
+</html>

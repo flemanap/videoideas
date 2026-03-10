@@ -1,0 +1,10 @@
+{
+  "name": "content-flow-backend",
+  "region": "oregon",
+  "builder": "nixpacks",
+  "buildCommand": "npm install",
+  "startCommand": "node server.js",
+  "env": {
+    "NODE_VERSION": "20"
+  }
+}
