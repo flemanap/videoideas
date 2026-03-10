@@ -1,10 +1,10 @@
 services:
-  - name: videoideas
+  - name: videoideas-1
     github:
       owner: flemanap
       repo: videoideas
-    region: oregon
-    buildCommand: cd backend && npm install
+    region: frankfurt
+    buildCommand: yarn --frozen-lockfile install
     startCommand: node backend/server.js
     envVars:
       - key: NODE_VERSION
