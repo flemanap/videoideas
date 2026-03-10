@@ -78,7 +78,8 @@
   </footer>
 
   <script>
-    // Configuration
+    // Configuration - Using Render Backend
+    const API_URL = 'https://videoideas.onrender.com';
     const SUPABASE_URL = 'https://ieahjkraxawvmzhkcwwb.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllYWhqa3JheGF3dm16aGN3d2IiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTYzNjQwNjQwMCwiZXhwIjoxOTUyMDgyNDAwfQ.rWDsCpv3e1VqqV6AV_j2-J';
 
@@ -321,12 +322,11 @@
       btn.textContent = 'Generating...';
 
       try {
-        // Call the Supabase Edge Function
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-ideas`, {
+        // Call the backend API (Render)
+        const response = await fetch(`${API_URL}/api/generate`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            'Content-Type': 'application/json'
           }
         });
 
@@ -336,7 +336,7 @@
         // Refresh ideas after generation
         setTimeout(() => {
           fetchIdeas();
-        }, 2000);
+        }, 3000);
       } catch (err) {
         console.error('Error generating ideas:', err);
         alert('Error generating ideas. Please try again.');

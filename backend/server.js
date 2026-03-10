@@ -246,6 +246,66 @@ async function fetchYouTubeTrends(keywords, maxResults = 10) {
   }
 }
 
+// Fetch TikTok trends using Apify
+async function fetchTikTokTrends(keywords) {
+  try {
+    if (!apifyApiKey) {
+      console.log('No Apify API key, skipping TikTok');
+      return [];
+    }
+
+    const trends = [];
+
+    for (const keyword of keywords.slice(0, 2)) {
+      // Use Apify's TikTok scraper
+      const response = await axios.post(
+        'https://api.apify.com/v2/acts/ted8889~tiktok-hashtag-scraper/runs',
+        {
+          hashtag: keyword,
+          count: 10
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apifyApiKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const runId = response.data.data.id;
+
+      // Wait for completion
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // Get results
+      const resultResponse = await axios.get(
+        `https://api.apify.com/v2/acts/ted8889~tiktok-hashtag-scraper/runs/${runId}/dataset/items`,
+        {
+          headers: { 'Authorization': `Bearer ${apifyApiKey}` }
+        }
+      );
+
+      if (resultResponse.data) {
+        resultResponse.data.forEach(item => {
+          trends.push({
+            platform: 'tiktok',
+            title: item.desc || item.text || 'TikTok Video',
+            description: item.text || '',
+            videoUrl: item.videoUrl,
+            author: item.author?.nickname || '',
+            likes: item.diggCount || 0
+          });
+        });
+      }
+    }
+
+    return trends;
+  } catch (err) {
+    console.error('TikTok/Apify Error:', err.message);
+    return [];
+  }
+}
+
 async function generateVideoIdeas(profileName, trends) {
   const profile = PROFILES[profileName];
 
@@ -322,9 +382,17 @@ async function generateDailyIdeas() {
   for (const [profileName, count] of Object.entries(ideasPerProfile)) {
     try {
       const keywords = PROFILES[profileName].keywords;
-      const trends = await fetchYouTubeTrends(keywords, 15);
 
-      const ideas = await generateVideoIdeas(profileName, trends);
+      // Fetch from YouTube
+      const youtubeTrends = await fetchYouTubeTrends(keywords, 10);
+
+      // Fetch from TikTok using Apify
+      const tiktokTrends = await fetchTikTokTrends(keywords);
+
+      // Combine trends
+      const allTrends = [...youtubeTrends, ...tiktokTrends];
+
+      const ideas = await generateVideoIdeas(profileName, allTrends);
 
       for (let i = 0; i < Math.min(count, ideas.length); i++) {
         const idea = ideas[i];
@@ -336,7 +404,7 @@ async function generateDailyIdeas() {
           script_hook: idea.script_hook,
           script_full: idea.script_full,
           hashtags: idea.hashtags,
-          source_topic: trends[i]?.title || 'AI Generated'
+          source_topic: allTrends[i]?.title || 'AI Generated'
         });
       }
 
